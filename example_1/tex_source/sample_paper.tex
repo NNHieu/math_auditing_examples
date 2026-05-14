@@ -1,0 +1,1199 @@
+\documentclass[twoside]{article}
+\usepackage[preprint]{aistats2026}
+% If your paper is accepted, change the options for the package
+% aistats2022 as follows:
+% \usepackage[accepted]{aistats2022}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array} % for better column control
+\usepackage{mathtools}
+\input{new_theorem}
+
+% operators
+\DeclareMathOperator{\vecop}{vec}
+\DeclareMathOperator{\prox}{prox}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Lc}{\mathcal{L}}
+\newcommand{\Bc}{\mathcal{B}}
+\newcommand{\ehat}{\mathbf{e}}
+\newcommand{\yhat}{\hat{\mathbf{y}}}
+\newcommand{\ub}{\mathbf{u}}
+\newcommand{\yb}{\mathbf{y}}
+\newcommand{\sigmamin}{\sigma_{\min}}
+
+
+%
+% This option will print headings for the title of your paper and
+% headings for the authors names, plus a copyright note at the end of
+% the first column of the first page.
+
+% If you set papersize explicitly, activate the following three lines:
+\special{papersize = 8.5in, 11in}
+\setlength{\pdfpageheight}{11in}
+\setlength{\pdfpagewidth}{8.5in}
+% If you use natbib package, activate the following three lines:
+\usepackage[round]{natbib}
+%\renewcommand{\bibname}{References}
+%\renewcommand{\bibsection}{\subsubsection*{\bibname}}
+
+% If you use BibTeX in apalike style, activate the following line:
+%\bibliographystyle{apalike}
+
+\begin{document}
+
+% If your paper is accepted and the title of your paper is very long,
+% the style will print as headings an error message. Use the following
+% command to supply a shorter title of your paper so that it can be
+% used as headings.
+%
+%\runningtitle{I use this title instead because the last one was very long}
+
+% If your paper is accepted and the number of authors is large, the
+% style will print as headings an error message. Use the following
+% command to supply a shorter version of the authors names so that
+% they can be used as headings (for example, use only the surnames)
+%
+%\runningauthor{Surname 1, Surname 2, Surname 3, ...., Surname n}
+
+\twocolumn[
+\aistatstitle{On Global Convergence Theory for Monotone DEQ}
+\aistatsauthor{Hieu Ngoc Nguyen (hnn5071)}
+\aistatsaddress{Penn State University}
+]
+
+\begin{abstract}
+Deep Equilibrium (DEQ) models are a class of deep learning models that directly compute the "infinite-depth" feature representation by solving fixed-point equations. 
+Although previous works have experimentally demonstrated the potentials of DEQs in terms of performance and memory usage, the theoretical understanding of training dynamics under gradient descent of DEQ models is still limited. 
+Current theoretical studies either consider deep \emph{linear} equilibrium models, which are a simplified and constrained version of DEQ.
+% or focus on over-parametrized implicit layers in which \emph{the existence of fixed points} is not guaranteed.
+In this work, we analyze a more expressive class, called \emph{monotone deep equilibrium (monDEQ)} models.
+The key difference of monDEQs from linear DEQ models is the monotone operator parametrizations of weight matrices, which introduce nonlinearities, while still guaranteeing the existence of fixed points.
+In this project, we approach the training convergence problem of monDEQs from the perspective of overparameterization
+% First, we empirically explore structures of the loss landscape of monDEQs. 
+% We observe that gradient descent on this optimization problem usually converges to flat minimizers.
+We theoretically prove that under suitable conditions, the gradient descent converges to the global optimum at a linear rate. 
+% and Neural Tangent Kernel.
+% , leading to significant technical difficulties in analyzing the gradient flow
+%%%
+%Our work studies the convergence of training DEQ models by leveraging the approach from the perspective of the Neural Tangent kernel (NTK).
+%
+
+%%%
+%In this manuscript, we present our observation to explore the structure of the loss landscape of DEQ models. This observation suggests that DEQ models often have flat minimizers and raise questions about the trainability of DEQ models.
+%
+ 
+%%%
+%Finally, we take a step toward answering these questions by using results from recent studies on the connection between the Neural tangent kernel and the training dynamic of neural networks. We prove that under suitable conditions, the convergence to the global optimum with linear rate is guaranteed. 
+%
+\end{abstract}
+
+\section{Introduction}
+
+\paragraph{Implicit deep learning models.} Recently, a new class of deep learning models, called implicit layers, has been developed based on implicit prediction rules. Instead of having a concrete computation graph, these models define a layer in terms of satisfying joint conditions of input and output. For example, the output $z$ is a fixed point of $f(\cdot, x)$, i.e, $z = f(z,x)$. This formalization leads to deep equilibrium (DEQ) models \citep{DEQ}.  Another examples are differential equations $\frac{d z(t)}{dt} = f(z(t), t)$, leading to Neural ODEs (NODEs) \citep{NEURIPS2018_69386f6b}; and the optimality conditions of optimization problems, leading to differentiable optimization $z(x) = \underset{z \in \mathcal{C}(x)}{\arg\min} f(z, x)$ approaches \citep{OptNet}.
+
+\paragraph{The theoretical question.}
+Neural network-based machine learning is well-known for being somewhat of a "black magic." 
+Its success relies on many tricks; for example, parameter tuning can be quite an art.
+The conventional belief was that the loss landscape of neural networks with more than two layers is nonconvex, highly nonlinear, and high-dimensional.
+So it was not trivial at all to discover that deep neural networks (DNNs) can be trained.
+Understanding why first-order algorithms like gradient descent (GD) based methods can often find a global optimum in optimizing the non-convex loss surface of neural networks is one of the critical problems in deep learning theory.
+This work aims to take a step toward answering the above question for DEQs, a class of architecture that differs from those commonly used in the related literature.
+
+\begin{quote}
+    Under which conditions will training DEQ models with GD converge?
+\end{quote}
+
+\paragraph{The theoretical Gap.}
+While training dynamics of certain types of DEQ models are understood (for instance, \citet{kenji} have studies linear DEQ models), the dynamics of the more expressive Monotone DEQs (monDEQ) \citep{monotonedeq} have remained a "black box".
+
+In contrast to prior work, we develop a convergence theory for monotone deep equilibrium models (monDEQs) that leverages their operator structure. We prove global linear convergence under gradient descent by leveraging over-parameterization.
+
+% Structure-aware guarantees. By parameterizing the weight matrix as a strongly monotone operator, we directly incorporate architectural constraints into the optimization analysis, rather than treating the model as a generic nonlinear mapping.
+% We derive fine-grained bounds on parameter trajectories, showing that each parameter block remains within a controlled neighborhood of initialization. This provides a more detailed understanding of training dynamics than prior NTK-based analyses. Operator-theoretic control of conditioning. Our guarantees depend explicitly on the monotonicity constant, which governs both stability of the fixed point and conditioning of the training dynamics.
+% Overall, our work complements existing NTK-based analyses by showing that global convergence of DEQs can also be achieved through deterministic, structure-exploiting arguments, thereby broadening the theoretical foundations of equilibrium models.
+
+
+
+\section{Related Work}
+
+\paragraph{Deep Equilibrium Models.}
+Deep equilibrium models (DEQs), introduced by \cite{DEQ}, define network outputs as the fixed point of a nonlinear transformation. This formulation enables constant-memory training via implicit differentiation and has been applied across sequence modeling, vision, and scientific machine learning. Subsequent work has studied stability, expressivity, and numerical solvers for DEQs, but theoretical understanding of their optimization landscape remains limited.
+
+\paragraph{Global Convergence of Overparameterized DEQs}
+The most closely related work are \cite{Kawaguchi2016LocalMinima, Ling2022GlobalCO}, which establishes that gradient descent converges to a global optimum at a linear rate for overparameterized (linear) DEQs. Their analysis follows the neural tangent kernel (NTK) framework, showing that training dynamics can be approximated by a linear model around initialization. This result relies on a restricted paragrameters where the forward is guareenteed to be a shrinkage operator. 
+While this line of work provides the first global convergence guarantees for DEQs, we provide a theoretical results for a more experessive class of DEQ models.
+
+\paragraph{Monotone Operator Perspectives in Deep Learning}
+Monotone operator theory has been increasingly used to analyze implicit models and equilibrium networks. Prior work has explored connections between DEQs and monotone operators for ensuring existence and uniqueness of equilibria, as well as for improving numerical stability. However, these approaches have primarily focused on forward stability and solver convergence rather than optimization dynamics.
+
+\section{Preliminaries}
+
+In this section, we present the definition of the MonDEQ model, the computational procedure, and a lemma that gives an upper bound on the Lipschitz constant of this network. The notation used in this paper is given in Table \ref{tab:TableOfNotationForMyResearch}.
+
+
+\begin{table}[ht]
+\caption{Table of Notation}
+\centering
+\begin{tabularx}{\columnwidth}{>{\raggedleft\arraybackslash}p{1.5cm} c X}
+\toprule
+& \textbf{Symbol/E.g} & \textbf{Description}\\
+\midrule\midrule
+\multicolumn{3}{c}{\textbf{Variables}}\\
+\\
+Bold lowercase letters  & $\mathbf{v}$ & vectors \\
+Capital letters & $W$ & matrices \\
+\midrule\midrule
+\multicolumn{3}{c}{\textbf{Operators}}\\
+\\
+& $\langle\cdot, \cdot\rangle$ & Inner product\\
+& $\|\cdot\|$ & Vector norm or operator norm\\
+& $\det(\cdot)$ & Determinant\\
+& $\rho(\cdot)$ & Spectral radius\\
+& $\lambda_{\max}, \lambda_{\min}(\cdot)$ & Max/min eigenvalue\\
+& $\sigma_{\max}, \sigma_{\min}(\cdot)$ & Max/min singular value\\
+& $\otimes$ & Kronecker product \\
+& $\oplus$ & Kronecker sum \\
+& $\circ$ & Hadamard product \\
+& $[n]$ & The set $\{1, 2, \dots, n\}$ \\
+& $K^{(n)}$ & Commutation matrix: $K^{(n)}\operatorname{vec}[A] = \operatorname{vec}[A^\top]$ for $n \times n$ matrices \\ 
+\bottomrule
+\end{tabularx}
+\label{tab:TableOfNotationForMyResearch}
+\end{table}
+
+In this work, we also use the following two Kronecker identities repeatedly:
+\begin{align}
+  \vecop[ABC] &= (C^\top \otimes A)\vecop[B], \tag{K1}\label{eq:K1}\\
+  \|A \otimes B\|_2 &= \|A\|_2\|B\|_2. \tag{K2}\label{eq:K2}
+\end{align}
+
+
+\subsection{Setting: Optimizing Monotone DEQ models by Gradient Descent}
+In this work, we consider a fully connected monotone DEQ ReLU activated network with $n$ hidden neurons in the hidden layers, defined as in Definition \ref{def:mondeq}.
+
+\begin{definition}[Monotone DEQ]
+\label{def:mondeq}
+The monDEQ consider a weight-tied, input injected network with iterations of the form,
+\begin{equation}
+    z^{[k+1]}=\sigma\left(W \mathbf{z}^{[k]}+U \mathbf{x} \right)
+\end{equation}
+where $\mathbf{x} \in \mathbb{R}^d$ is the input, $U \in \mathbb{R}^{n \times d}$ is the input-injection weights, $W \in \mathbb{R}^{n \times n}$ is the hidden-unit weights, $\mathbf{z}^{(k)}$ is the hidden unit activation and $\sigma: \mathbb{R} \mapsto \mathbb{R}$ an elementwise non-linearity which is ReLU function in our case.
+The output of implicit layers is define as the fixed point $\mathbf{z}^*$ of the above update function
+
+\begin{equation}
+    \mathbf{z}^*=\sigma\left(W \mathbf{z}^*+U \mathbf{x}\right)
+\end{equation}
+To ensure the strong monotonicity condition, that $I - W \succeq mI$, the monDEQ parameterizes $W$ as
+\begin{equation}
+    W=(1-m) I-A^{T} A+B-B^{T} .
+\end{equation}
+where $A, B \in \mathbb{R}^{n \times n}$.
+The output of the network is define as the linear transformation of the fixed point:
+\begin{align*}
+    f(\theta, \mathbf{x}) = \mathbf{u}^\top \mathbf{z}^{*}
+\end{align*}
+where $\theta = (\mathbf{u}, A, B, U)$ are trainable parameters.
+\end{definition}
+
+% \textbf{Why this parametrization?} The constraint $I - W \succeq mI$ (i.e., $I - W$ is $m$-strongly
+% positive definite) is what makes the fixed-point equation (1) well-posed and uniquely solvable.
+% To see why the parametrization enforces this, expand:
+
+% $$I - W = I - (1-m)I + A^\top A - B + B^\top$$
+% $$= mI + A^\top A + B^\top - B.$$
+
+% Now $(B^\top - B)$ is skew-symmetric, so $(B^\top - B) + (B - B^\top) = 0$: it drops out of
+% the symmetrized form $(I - W) + (I - W)^\top = 2mI + 2A^\top A$. Since $A^\top A \succeq 0$,
+% we get $(I - W) + (I - W)^\top \succeq 2mI$, which is exactly the condition that $I - W$ is
+% $m$-strongly monotone as a linear operator. 
+
+An important property of monDEQ is \textbf{well-posedness}, i.e., for each input, there exists a unique corresponding output. This is achieved through the parameterization $W=(1-m) I-A^{T} A+B-B^{T}$, where the details are provided in Appendix Section \ref{sec:well_poseness_of_monDEQ}.
+
+Next, we define our input dataset as being drawed from an underlying data distribution $\mathcal{D}$ over $\mathbb{R}^{d} \times \mathbb{R}$. In particular, we draw i.i.d $N$ input-label samples denoted $\mathcal{S} = \{(\mathbf{x}_i, y_{i}\}_{i = 1}^N$. We also denote $X = [\mathbf{x}_1, \dots, \mathbf{x}_n] \in \mathbb{R}^{d \times N}$ and $\mathbf{y} = (y_1, \dots, y_N)^\top \in \mathbb{R}^{N}$. 
+% For simplicity, we make following assumption on the dataset
+The equilibrium feature matrix $Z^* \in \mathbb{R}^{n \times N}$ satisfies
+
+\begin{equation}
+Z^* = \sigma(W Z^* + U X)
+\label{eq:eq_point}
+\end{equation}
+
+where $\sigma$ applies entry-wise. The prediction vector is
+
+$$\hat{\mathbf{y}} = Z^{*\top} \mathbf{u} \in \mathbb{R}^N.$$
+
+
+% \begin{assumption}[Input data]
+% We assume that for $(\mathbf{x}, y)$ sampled from $\mathcal{D}$, we have (1) $\|\mathbf{x}\| = 1$ and (2) $|y| < 1$.
+% \end{assumption}
+
+% Denote $N$ is the size of the dataset, $n$ is the width of monDEQ.
+Given a parameterized monDEQ network and the training data $S$, our optimization problem is the quadratic loss function
+% \begin{equation}
+%     \min_{\theta} \mathcal{L}(\theta) = \frac{1}{2} \sum_{i = 1}^N (f(\theta, \mathbf{x}_i) - y_i)^2.
+% \end{equation}
+
+$$\min_\theta \mathcal{L}(\theta) = \frac{1}{2}\|\hat{\mathbf{y}} - \mathbf{y}\|_2^2
+= \frac{1}{2}\|Z^{*\top}\mathbf{u} - \mathbf{y}\|_2^2.$$
+
+We train the model by gradient descent (GD)  
+% We first initialize the parameters randomly follow
+% \begin{assumption}[Random initialization]
+% We assume that $A$
+% \end{assumption}
+and consider the GD update 
+\begin{align*}
+    \theta_{k + 1}= \theta_k - \eta \nabla \mathcal{L}(\theta_k),
+\end{align*}
+where $\eta > 0$ is the learning rate and $\theta_k = \operatorname{vec}[A_k, B_k, U_k, \mathbf{u}_k]$ is the paraneter we optimize over at step $k$.
+The gradient is computed using the implicit
+function theorem (detailed in the Appendix Section \ref{sec:backward_pass}).
+Throughout this study, we use $k$ as the GD iteration number, and also use $k$ to index all variables and outputs that depend on $\theta_k$.
+
+% Unlike a two-layer linear network, $\mathcal{L}$ is non-convex in $\theta$
+% and the gradient involves an implicit matrix inverse (through the IFT). Standard convergence
+% arguments for smooth non-convex functions only guarantee finding critical points. The surprise
+% of our work is that, under the right conditions, every critical point is a global minimum
+% and GD finds it in $O(\log(1/\epsilon))$ steps.
+
+\subsection{Forward-backward splitting and Bound on $\|Z^*\|_F$}
+\label{sec:forward_backward_splitting}
+
+% In this part, we will provide the background of this method.
+% Forward-backward splitting (FBS) is an iterative approach to find a zero in Problem \ref{problem:splitting}.
+
+% Given the parameters $W, U$ and inputs $\mathbf{x}$, we can solve for the outputs of monDEQ using forward-backward splitting (FBS) iterations. 
+% Each iteration of FBS is defined as follows
+% % Operator splitting approaches refer to methods to find a zero in a sum of operators (such as problem \ref{problem:splitting}). 
+% % There are many such operator splitting methods, but the one we use mainly is 
+
+% \begin{align*}
+%     \mathbf{z}^{[k+1]} =& \sigma\left(\mathbf{z}^{[k]}-\alpha\left((I-W) \mathbf{z}^{[k]} - U \mathbf{x}\right)\right) \\
+%     =& \sigma\left(\underbrace{(I-\alpha(I-W))}_{T_\alpha} \mathbf{z}^{[k]}+\alpha U \mathbf{x}\right),
+% \end{align*}
+% where $\sigma(\cdot)=\operatorname{prox}_{f}^{1}(\cdot)$ and  $\operatorname{prox}_{f}^{\alpha}$ denotes the proximal operator
+% $$
+% \operatorname{prox}_{f}^{\alpha}(x) \equiv \underset{\mahtbf{z}}{\operatorname{argmin}} \frac{1}{2}\|\mathbf{x}- \mathbf{z}\|_{2}^{2}+\alpha f(\mathbf{z}) .
+% $$
+% In the next sections, we analyze monDEQ models by unrolling the forward-backward iteration. 
+% Here we define the transform of the feature matrix at the $\ell$-th iteration as
+% \begin{equation}
+% \label{eqn:fwbw_batch_fb_equation}
+%     Z^{[\ell]} = \sigma(T_\alpha Z^{[\ell - 1]}  + \alpha U X)
+% \end{equation}
+% where $Z^{[\ell]} \in \mathbb{R}^{n \times N}$ is the output features at the $\ell$-th iteration.
+% The output of the monDEQ layer is defined by $Z \triangleq \lim_{\ell \to \infty}Z^{[\ell]}$.
+% We also define $\hat{y}_i = f(\theta, \mathbf{x}_i)$ as the network's prediction on the $i$-th input and use $\hat{\mathbf{y}} = (\hat{y}_1, \dots, \hat{y}_N)^\top \in \mathbb{R}^{N}$ to denote all $N$ prediction.
+% Then we have $\hat{\mathbf{y}} = Z^\top \mathbf{u}$ and $\mathcal{L}(\theta) = \frac{1}{2} \| \hat{\mathbf{y}} - \mathbf{y} \|_2^2$.
+% Next we will use these notation to derive the gradient for monotone DEQ models. 
+
+
+To compute $Z^*$ in practice, we use the forward-backward splitting (FBS) iteration \citep{monotonedeq}.
+
+\begin{definition}[FBS iteration]
+Given parameters $(W, U)$ and data $X$, initialize $Z^{[0]}$ (e.g., to zero) and iterate
+
+$$Z^{[\ell+1]} = \sigma\!\left(T_\alpha Z^{[\ell]} + \alpha U X\right),$$
+
+where $T_\alpha = I - \alpha(I - W)$ and $\alpha > 0$ is the FBS step size.
+\end{definition}
+
+
+Note that we use $\cdot_k$ for GD steps and $\cdot^{[\ell]}$ for forward-backward splitting steps.
+
+% \subsection{Estimating the Lipschitz constant of monDEQ}
+% One of the important properties to prove the convergence of GD is the Lipschitz constant of the objective function. 
+% Next, we will present a result from \cite{pabbaraju2021estimating} which upper bound this constant for monDEQ models.
+% The idea is instead of naive unrolling forward computation of monDEQ models, we unroll steps computed by the forward backward splitting method,
+
+% \begin{align*}
+%     \mathbf{z}^{[k+1]} 
+%     = \sigma\left(\underbrace{(I-\alpha(I-W))}_{T_\alpha} \mathbf{z}^{[k]}+\alpha U \mathbf{x}\right)
+% \end{align*}
+
+Denote $L[T_\alpha]$ the Lipschitz constant of $T_\alpha$, we have the following proposition.
+
+\begin{proposition}[\citep{monotonedeq}]
+\label{lem:upper_LT}
+Let $I - W$ be $m$-strongly monotone with Lipschitz constant $L = \|I - W\|_2$. 
+Then
+$L[T_\alpha] \leq \sqrt{1-2 \alpha m+\alpha^{2} L^{2}}$
+\end{proposition}
+
+% \begin{corollary}
+%     For $\alpha \in (0, 2m/L^2)$, the FBS iteration converges geometrically to
+% the unique fixed point $Z^*$.
+% \end{corollary}
+
+This implies that for $\alpha \in \left(0, \frac{2m}{L^2} \right)$ then $ L[T_\alpha] < 1$. 
+Thus, the operator $T_\alpha$ is contractive for any $\alpha \in (0, \frac{2m}{L^2}]$, and this iteration is guaranteed to converge as long as the operator $I - W$ is Lipschitz and strongly monotone with parameters L. 
+
+\begin{lemma}[Bound on $\|Z^*\|_F$]\label{lem:Zstar_norm}
+\begin{equation}\label{eq:Zstar_norm}
+  \|Z^*\|_F \leq \frac{\|U\|_2\|X\|_F}{m}.
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+    
+Run FBS from $Z^{[0]} = 0$ with any $\alpha \in (0, 2m/L^2)$. Since ReLU is non-expansive
+($\|\sigma(\mathbf{a})\|_F \leq \|\mathbf{a}\|_F$ entry-wise):
+
+\begin{align*}
+\|Z^{[\ell]}\|_F 
+&= \|\sigma(T_\alpha Z^{[\ell-1]} + \alpha UX)\|_F \\
+&\leq \|T_\alpha Z^{[\ell-1]} + \alpha UX\|_F \\
+&\leq L[T_\alpha]\|Z^{[\ell-1]}\|_F + \alpha\|U\|_2\|X\|_F.
+\end{align*}
+
+Let $c = L[T_\alpha] \in [0, 1)$ and $r = \alpha\|U\|_2\|X\|_F$. Starting from $Z^{[0]} = 0$:
+
+$$\|Z^{[\ell]}\|_F \leq r \sum_{i=0}^{\ell-1} c^i \leq \frac{r}{1 - c} = \frac{\alpha\|U\|_2\|X\|_F}{1 - \sqrt{1 - 2\alpha m + \alpha^2 L^2}}.$$
+
+This bound holds for \emph{every} $\alpha \in (0, 2m/L^2)$. Define
+
+$$f(\alpha) = \frac{\alpha}{1 - \sqrt{1 - 2\alpha m + \alpha^2 L^2}}.$$
+
+We claim $\inf_{\alpha \in (0,\,2m/L^2)} f(\alpha) = 1/m$.
+
+\textbf{Step 1 (limit):} As $\alpha \to 0^+$ the ratio is $0/0$; apply L'Hôpital:
+
+\begin{align*}
+    \lim_{\alpha\to 0^+} f(\alpha) =& \lim_{\alpha\to 0^+} \frac{1}{\frac{d}{d\alpha}[1-\sqrt{1-2\alpha m+\alpha^2 L^2}]} \\
+    =& \frac{1}{\left.\frac{m - \alpha L^2}{\sqrt{1-2\alpha m+\alpha^2 L^2}}\right|_{\alpha=0}}\\ 
+    =& \frac{1}{m}.
+\end{align*}
+
+\textbf{Step 2 ($f$ is increasing):} Let $h(\alpha) = 1 - 2\alpha m + \alpha^2 L^2$, so $f(\alpha) = \alpha/(1-\sqrt{h(\alpha)})$. Differentiating and simplifying (using $h'(\alpha) = -2m + 2\alpha L^2$ and $\sqrt{h} < 1$ on the interval $(0,\,2m/L^2)$) shows $f'(\alpha) > 0$ for $\alpha \in (0, 2m/L^2)$. Therefore $f$ is strictly increasing, and its infimum over $(0, 2m/L^2)$ equals its limit at $0^+$, which is $1/m$.
+
+Since $\|Z^*\|_F \leq f(\alpha)\|U\|_2\|X\|_F$ for every valid $\alpha$ and $\inf f = 1/m$, we conclude
+
+$$\|Z^*\|_F \leq \frac{\|U\|_2\|X\|_F}{m}.$$
+\end{proof}
+
+% \begin{proposition}
+% Let $f(x) = z^∗$ denote the output of the monDEQ on input $x$. Consider any $x, y \in \mathbb{R}^n$. Then, we have that
+% $$
+% \|f(x)-f(y)\|_{2} \leq \frac{\|U\|_{2}}{m}\|x-y\|_{2}
+% $$
+% \end{proposition}
+% The proof is from unrolling forward-backward iterations.
+
+% \begin{proposition}
+% Let $I - W \succeq mI$ and $I - \bar W \succeq \bar m I$. The change in the output of the monDEQ on perturbing the weights and biases from $W, U, b$ to $\bar W, \bar U, \bar b$ is bounded as follows:
+% $$
+% \|f(\bar{W}, \bar{U}, \bar{b})-f(W, U, b)\|_{2} \leq \frac{\|W-W\|_{2}\|U x+b\|_{2}}{m \bar{m}}+\frac{\|(\bar{U}-U) x\|_{2}+\|\bar{b}-b\|_{2}}{\bar{m}}
+% $$
+% \end{proposition}
+
+\subsection{Linear Convergence of GD under the Polyak-Lojasiewicz Condition}
+
+It is commonly known that it is easier for GD-based optimization methods to optimize a convex objective function.
+In contrast, we often think non-convex is bad, and it might have many local minima and no general global optimization techniques.
+But there are objective functions that are nice even though they are non-convex.
+The key property of convexity is that they guarantee critical points are good.  
+Next, we will introduce a condition that basically says the same thing: when the gradient vanishes, some good thing happens.
+
+One of the alternative for convexity is the Polyak-Lojasiewicz Inequality.
+\begin{definition}[PL inequality]
+A differentiable function $f: \mathbb{R}^p \to \mathbb{R}$ satisfies the Polyak–Łojasiewicz
+(PL) inequality with constant $\mu > 0$ if
+
+$$\frac{1}{2}\|\nabla f(x)\|^2 \geq \mu\bigl(f(x) - f^*\bigr) \qquad \text{for all } x,$$
+
+where $f^* = \inf_x f(x)$.
+\end{definition}
+
+
+One way to interpreted is it requires that the gradient grows faster than a quadratic function as we move away from the optimal function value. 
+Note that this inequality is similar in strongly convex function, so it also implies every stationary point is a global minimum. 
+But unlike SC, it does not imply that there is a unique solution so it is a weaker condition. 
+It is also straight forward to prove linear convergence for GD using PL condition \citep{Hamed2016}.
+% We can simply replace lemma \ref{lem:stronglyconv_bound} by \ref{ineq:PL}.
+
+\begin{theorem}[\cite{Hamed2016}]
+If $f$ has an $L$-Lipschitz gradient and satisfies PL with constant
+$\mu$, then gradient descent with step size $1/L$ satisfies
+
+$$f(x_k) - f^* \leq \left(1 - \frac{\mu}{L}\right)^k (f(x_0) - f^*).$$
+\end{theorem}
+
+\begin{proof}
+The descent lemma (Lipschitz gradient) gives
+$f(x_{k+1}) \leq f(x_k) - \frac{1}{2L}\|\nabla f(x_k)\|^2.$
+Applying PL: $\frac{1}{2L}\|\nabla f(x_k)\|^2 \geq \frac{\mu}{L}(f(x_k) - f^*)$. So:
+
+$$f(x_{k+1}) - f^* \leq \left(1 - \frac{\mu}{L}\right)(f(x_k) - f^*).$$
+
+Apply recursively from $k = 0$. 
+\end{proof}
+
+\section{Main results}
+
+\subsection{Upper bound on Gradient}
+We first derive the gradient for monotone DEQ network based on the implicit function theorem.
+
+\begin{definition}[Residual function]
+Define $g_\theta(Z; X) = Z - \sigma(WZ + UX)$. The equilibrium satisfies $g_\theta(Z^*; X) = 0$.
+\end{definition}
+
+Note that the equilibrium point $Z^*$ of Equation (\ref{eq:eq_point}) is also the solution of $g_{\theta}(Z; X)$.
+The implicit function theorem (IFT) tells us: if the Jacobian $\partial g / \partial \operatorname{vec}[Z]$
+is invertible at $Z^*$, then $Z^*$ is a smooth function of $\theta$ near the current parameter
+values, and
+
+$$\frac{d\,\operatorname{vec}[Z^*]}{d\,\theta}
+= -\left(\frac{\partial\,\operatorname{vec}[g_\theta]}{\partial\,\operatorname{vec}[Z]}\right)^{-1}
+\frac{\partial\,\operatorname{vec}[g_\theta]}{\partial\,\theta}.
+\label{eq:IFT}
+$$
+
+Invertibility is guaranteed by the strong monotonicity of $I - W$. 
+
+Now, we derive the gradient of $g_\theta$ for each parameter $A, B, U$, and also the feature input $Z$.
+Let $D = \operatorname{diag}(\operatorname{vec}(\sigma'(WZ^* + UX))) \in \mathbb{R}^{Nn \times Nn}$ be the diagonal matrix of ReLU derivatives (entries in $\{0, 1\}$), 
+$K^{(n)}$ is a commutation matrix, and define
+$$Q = I_{Nn} - D(I_N \otimes W) \in \mathbb{R}^{Nn \times Nn},$$
+$$P_A = -(I_{n^2} + K^{(n)})(I_n \otimes A^\top), \qquad
+P_B = I_{n^2} - K^{(n)}.$$
+
+\begin{lemma}
+\label{lem:deri_g}
+The partial derivatives of $g_{\theta}$ with respect to $Z, A, B$, and $U$ are
+\begin{align*}
+    \frac{\partial g_{\theta}}{\partial \operatorname{vec}[Z]} =&\;Q, \\
+    % \frac{\partial g_{\theta}}{\partial \operatorname{vec}[T]} =& -D\left[I_m \otimes Z\right], \\
+    \frac{\partial g_{\theta}}{\partial \operatorname{vec}[A]} =& \frac{\partial g_{\theta}}{\partial \operatorname{vec}[W]} \frac{\partial \operatorname{vec}[W]}{\partial \operatorname{vec}[A]} = -D\left[Z^\top \otimes I_n\right] P_A\\
+    \frac{\partial g_{\theta}}{\partial \operatorname{vec}[B]} =& \frac{\partial g_{\theta}}{\partial \operatorname{vec}[W]} \frac{\partial \operatorname{vec}[W]}{\partial \operatorname{vec}[B]} = - D\left[Z^\top \otimes I_n\right]P_B\\
+    \frac{\partial g_{\theta}}{\partial \operatorname{vec}[U]} =& - D\left[X^\top \otimes I_n\right]\\.
+\end{align*}
+\end{lemma}
+
+Proof on \ref{proof:deri_g}.
+
+Next, we derive the graident of the fixed points $Z^*$ w.r.t parameters.
+\begin{lemma}
+\label{lem:deri_Z}
+The partial derivatives of $Z^*$ with respect to $A, B$, and $U$ are
+\begin{align*}
+    \frac{\partial \operatorname{vec}[Z^*]}{\partial \operatorname{vec}[W]} =&\;Q^{-1} D\left[Z^\top \otimes I_n\right], \\
+    \frac{\partial \operatorname{vec}[Z^*]}{\partial \operatorname{vec}[A]} =&\;Q^{-1} D\left[Z^\top \otimes I_n\right] P_A\\
+    \frac{\partial \operatorname{vec}[Z^*]}{\partial \operatorname{vec}[B]} =&\;Q^{-1} D\left[Z^\top \otimes I_n\right] P_B\\
+    \frac{\partial \operatorname{vec}[Z^*]}{\partial \operatorname{vec}[U]} =&\;Q^{-1}D\left[X^\top \otimes I_n\right]\\
+\end{align*}
+where $Q \triangleq \frac{\partial g_{\theta}}{\partial \operatorname{vec}[Z]} =  \left[I_{Nn}- D\left( I_N \otimes W\right)\right] \in \mathbb{R}^{Nn \times Nn}$.
+\end{lemma}
+\begin{proof}
+Apply~\eqref{eq:IFT} and substitute Lemma~\ref{lem:deri_g}.  The double negation
+(IFT sign and the minus signs in Lemma~\ref{lem:deri_g}) cancels to give positive signs.
+\end{proof}
+
+Finally, the gradient derivations of the loss function for each trainable parameters are given in Lemma \ref{lem:grad_loss}. Let $\mathbf{e} = \hat{\mathbf{y}} - \mathbf{y} \in \mathbb{R}^N$ be the prediction error.
+\begin{lemma}
+\label{lem:grad_loss}
+The partial derivatives of $\mathcal{L}$ with respect to $A, B, U$, and $\mathbf{u}$ are
+\begin{align*}
+    \frac{\partial \mathcal{L}}{\partial A} =&\;\mathbf{e}^\top \left(\mathbf{u}^\top \otimes I_N \right) Q^{-1} D\left[Z^{*\top} \otimes I_n\right] P_A \\
+    \frac{\partial \mathcal{L}}{\partial B} =&\;\mathbf{e}^\top \left(\mathbf{u}^\top \otimes I_N \right) Q^{-1} D\left[Z^{*\top} \otimes I_n\right] P_B \\
+    \frac{\partial \mathcal{L}}{\partial U} =&\;\mathbf{e}^\top \left(\mathbf{u}^\top \otimes I_N \right) Q^{-1} D\left[X^\top \otimes I_n\right] \\
+    \frac{\partial \mathcal{L}}{\partial \mathbf{u}} =&\;Z^{*}\mathbf{e} \\
+\end{align*}
+
+\end{lemma}
+
+\begin{proof}
+Chain rule: $\partial\Lc/\partial\theta
+= (\partial\Lc/\partial\yhat)\cdot(\partial\yhat/\partial\vecop[Z^*])\cdot
+  (\partial\vecop[Z^*]/\partial\theta)$.
+Use $\partial\Lc/\partial\yhat = \ehat^\top$,
+$\partial\yhat/\partial\vecop[Z^*] = \ub^\top\otimes I_N$ (by~\eqref{eq:K1}),
+and Lemma~\ref{lem:deri_Z}.
+For $\ub$: $\partial\yhat/\partial\ub = Z^{*\top}$, so $\nabla_\ub\Lc = Z^{*\top\top}\ehat = Z^*\ehat$.
+\end{proof}
+
+% \paragraph{Invertibility of $Q$ and the key operator bound.}
+
+Now, let us state some useful inequalities.
+
+\begin{lemma}
+\label{lem:upperbound_VQ}
+$\| (\mathbf{u}^\top \otimes I_N) Q^{-1}\| \le \frac{\|\mathbf{u}\|}{m}$
+\end{lemma}
+Proof on \ref{proof:upperbound_VQ}.
+
+We define a local neighborhood around the random initialization of each parameter $\theta \in \{A, B, U, \mathbf{u}\}$ as a ball $\mathcal{B}(\theta(0), R_\theta)$ with radius $R_\theta$. By Weyl's inequality, we can upper bound the operator norm of each parameter within its corresponding ball by a constant $\bar{\lambda}_{\theta} = \|\theta(0)\|_2 + R_{\theta}$. For notational convenience, we denote the product of these bounds as $\bar{\lambda}_{ab\dots} \triangleq \bar{\lambda}_a \bar{\lambda}_b \dots$ for any subset of parameters. Given this notation, we provide upper bounds on the update length in the following lemma.
+
+\begin{lemma}[Gradient norm upper bounds]
+\label{lem:grad_bounds}
+If $\theta \in \mathcal{B}(\theta(0), R_\theta)$, then
+\begin{align*}
+\|\nabla_\mathbf{u}\mathcal{L}\|_2 
+&\leq \|Z^*\|_F \|\mathbf{e}\|_2 
+\leq \frac{\bar\lambda_U \|X\|_F}{m}\|\mathbf{e}\|_2, \\[4pt]
+\|\nabla_U\mathcal{L}\|_F 
+&\leq \frac{\bar\lambda_\mathbf{u}\|X\|_F}{m}\|\mathbf{e}\|_2, \\[4pt]
+\|\nabla_B\mathcal{L}\|_F 
+&\leq \frac{2\bar\lambda_\mathbf{u}\|Z^*\|_F}{m}\|\mathbf{e}\|_2
+\leq \frac{2\bar\lambda_\mathbf{u}\bar\lambda_U\|X\|_F}{m^2}\|\mathbf{e}\|_2, \\[4pt]
+\|\nabla_A\mathcal{L}\|_F 
+&\leq \frac{2\bar\lambda_\mathbf{u}\|Z^*\|_F\bar\lambda_A}{m}\|\mathbf{e}\|_2
+\leq \frac{2\bar\lambda_\mathbf{u}\bar\lambda_U\bar\lambda_A\|X\|_F}{m^2}\|\mathbf{e}\|_2.
+\end{align*}
+\end{lemma}
+
+\begin{proof}
+For $\mathbf{u}$: $\nabla_\mathbf{u}\mathcal{L} = Z^*\mathbf{e}$, so
+$\|\nabla_\mathbf{u}\mathcal{L}\|_2 \leq \|Z^*\|_2\|\mathbf{e}\|_2 \leq \|Z^*\|_F\|\mathbf{e}\|_2$,
+and apply Lemma \ref{lem:Zstar_norm}: ($\|Z^*\|_F \leq \bar\lambda_U\|X\|_F/m$).
+
+For $U$: From sub-multiplicativity:
+$\|\nabla_U\mathcal{L}\|_F \leq \|\mathbf{e}\|_2 \cdot \|(\mathbf{u}^\top \otimes I_N)Q^{-1}D\|_2 \cdot \|X^\top \otimes I_n\|_2
+\leq \|\mathbf{e}\|_2 \cdot \frac{\bar\lambda_\mathbf{u}}{m} \cdot \|X\|_2
+\leq \frac{\bar\lambda_\mathbf{u}\|X\|_F}{m}\|\mathbf{e}\|_2.$
+
+For $B$: $\|P_B\|_2 = \|I_{n^2} - K^{(n)}\|_2 \leq \|I\|_2 + \|K^{(n)}\|_2 = 1 + 1 = 2$
+(since $K^{(n)}$ is a permutation matrix with spectral norm 1). Then:
+$\|\nabla_B\mathcal{L}\|_F \leq \|\mathbf{e}\|_2 \cdot \frac{\bar\lambda_\mathbf{u}}{m} \cdot \|Z^{*\top} \otimes I_n\|_2 \cdot \|P_B\|_2
+\leq \frac{\bar\lambda_\mathbf{u}}{m} \cdot \|Z^*\|_F \cdot 2 \cdot \|\mathbf{e}\|_2.$
+Apply Lemma \ref{lem:upperbound_VQ}.
+
+For $A$: $\|P_A\|_2 = \|(I_{n^2} + K^{(n)})(I_n \otimes A^\top)\|_2 \leq \|I_{n^2} + K^{(n)}\|_2\|A\|_2 \leq 2\bar\lambda_A$.
+The rest follows as for $B$. 
+\end{proof}
+
+% Now, we are ready to upper-bound the update step size for each parameter.
+% Let $\mathbf{e} = \hat{\mathbf{y}} - \mathbf{y} \in \mathbb{R}^{N \times 1}$ denote the prediction error vector. Notice that the $\ell_2$ norm of the vectorized gradient equals the Frobenius norm of the matrix gradient: $\|\nabla_{\operatorname{vec}[\theta]} \mathcal{L}\|_2 = \|\nabla_\theta \mathcal{L}\|_F$.
+
+% Starting with the gradient for $U$:$$\frac{\partial \mathcal{L}}{\partial \operatorname{vec}[U]} = \mathbf{e}^\top \left(\mathbf{u}^\top \otimes I_N \right) Q^{-1} D\left[X^\top \otimes I_n\right]$$Taking the norm of both sides and applying the sub-multiplicative property ($\|C D\|_2 \le \|C\|_2 \|D\|_2$):$$\|\nabla_U \mathcal{L}\|_F \le \|\mathbf{e}\|_2 \cdot \left\| (\mathbf{u}^\top \otimes I_N) Q^{-1} D \right\|_2 \cdot \left\| X^\top \otimes I_n \right\|_2$$Since $\|X^\top \otimes I_n\|_2 = \|X^\top\|_2 \|I_n\|_2 = \|X\|_2$, we substitute our lemma to get:$$\|\nabla_U \mathcal{L}\|_F \le \frac{1}{m} \|\mathbf{e}\|_2 \|\mathbf{u}\|_2 \|X\|_2$$
+
+% The gradient for $B$ is:$$\frac{\partial \mathcal{L}}{\partial \operatorname{vec}[B]} = \mathbf{e}^\top \left(\mathbf{u}^\top \otimes I_N \right) Q^{-1} D\left[Z^{*\top} \otimes I_n\right] P_B$$Taking the norm:$$\|\nabla_B \mathcal{L}\|_F \le \|\mathbf{e}\|_2 \cdot \frac{\|\mathbf{u}\|_2}{m} \cdot \left\|Z^{*\top} \otimes I_n\right\|_2 \cdot \|P_B\|_2$$We know $\|Z^{*\top} \otimes I_n\|_2 = \|Z^*\|_2$. For $P_B = (I_{n^2} - K^{(n)})$, we bound its operator norm using the triangle inequality. Because the commutation matrix $K^{(n)}$ is a permutation matrix, its spectral norm is 1. Thus:$$\|P_B\|_2 \le \|I_{n^2}\|_2 + \|K^{(n)}\|_2 = 1 + 1 = 2$$Substituting this back gives the upper bound:$$\|\nabla_B \mathcal{L}\|_F \le \frac{2}{m} \|\mathbf{e}\|_2 \|\mathbf{u}\|_2 \|Z^*\|_2$$
+
+% The gradient for $A$ is:$$\frac{\partial \mathcal{L}}{\partial \operatorname{vec}[A]} = \mathbf{e}^\top \left(\mathbf{u}^\top \otimes I_N \right) Q^{-1} D\left[Z^{*\top} \otimes I_n\right] P_A$$Here, $P_A = -(I_{n^2} + K^{(n)})(I_n \otimes A^\top)$. We bound its operator norm:$$\|P_A\|_2 \le \left( \|I_{n^2}\|_2 + \|K^{(n)}\|_2 \right) \cdot \|I_n \otimes A^\top\|_2 = 2 \|A\|_2$$Applying the same logic as before yields:$$\|\nabla_A \mathcal{L}\|_F \le \frac{2}{m} \|\mathbf{e}\|_2 \|\mathbf{u}\|_2 \|Z^*\|_2 \|A\|_2$$
+
+% Taking the $\ell_2$ norm immediately gives:$$\|\nabla_{\mathbf{u}} \mathcal{L}\|_2 \le \|\mathbf{e}\|_2 \|Z^*\|_2$$
+\begin{lemma}[Perturbation of $Z^*$ and $\yhat$]\label{lem:Zstar_perturb}
+Let $\theta = (W,U,\ub)$ and $\theta' = (W',U',\ub')$. Then:
+\begin{align}
+  \|Z(\theta) - Z(\theta')\|_F
+  &\leq \frac{\|X\|_F\|U-U'\|_2}{m}
+     + \frac{\|X\|_F\|W-W'\|_2\|U'\|_2}{m^2}, \label{eq:Zstar_perturb}\\
+  \|\yhat(\theta)-\yhat(\theta')\|_2
+  &\leq \frac{\|X\|_F\|\ub\|_2\|U-U'\|_2}{m} \notag\\ 
+    &+ \frac{\|X\|_F\|\ub\|_2\|W-W'\|_2\|U'\|_2}{m^2} \notag\\
+  &\quad + \frac{\|X\|_F\|U'\|_2\|\ub-\ub'\|_2}{m}. \label{eq:yhat_perturb}
+\end{align}
+\end{lemma}
+
+\begin{proof}
+From $Z - Z' = \sigma(WZ+UX) - \sigma(W'Z'+U'X)$, non-expansiveness of ReLU gives
+\[
+\|Z-Z'\|_F \leq \|WZ + UX - W'Z' - U'X\|_F.
+\]
+Rewriting,
+\[
+(I-W)(Z-Z') = (W-W')Z' + (U-U')X + (\text{ReLU correction}),
+\]
+and applying $\|(I-W)^{-1}\|_2 \leq 1/m$ yields~\eqref{eq:Zstar_perturb}, together with
+$\|Z'\|_F \leq \|U'\|_2\|X\|_F/m$.
+
+For $\yhat$, expand
+\[
+\yhat-\yhat' = (Z-Z')^\top\ub + Z'^\top(\ub-\ub').
+\]
+Applying~\eqref{eq:Zstar_perturb} to the first term and
+$\|Z'\|_F \leq \|U'\|_2\|X\|_F/m$ to the second gives~\eqref{eq:yhat_perturb}.
+\end{proof}
+
+\subsection{Continuous-Time Convergence}
+In this section, we first consider the process of learning monDEQ models via gradient flow or the gradient descent with an infinitesimal step-size. Under this training regime, the dynamic of each parameter is given by:
+\begin{align*}
+    \frac{d}{dt} A(t) =& -\frac{\partial \mathcal{L}}{\partial A}(\theta(t)),\;\;\;\forall t \ge 0\\
+    \frac{d}{dt} B(t) =& -\frac{\partial \mathcal{L}}{\partial B}(\theta(t)), \\
+    \frac{d}{dt} U(t) =& -\frac{\partial \mathcal{L}}{\partial U}(\theta(t)), \\
+    \frac{d}{dt} \mathbf{u}(t) =& -\frac{\partial \mathcal{L}}{\partial \mathbf{u}}(\theta(t)). \\
+\end{align*}
+
+
+% As discussed in Lemma \ref{lem:NTK}, our continuous time analysis relies on the analysis of the dynamics of prediction $\hat{\mathbf{y}}(t)$.
+% We derive the dynamics of $\hat{\mathbf{y}}$ in the following lemma.
+
+% \begin{proposition}
+% The dynamics of prediction $\hat{\mathbf{y}}$ is given by
+% \begin{equation}
+%     \frac{d \hat{\mathbf{y}}(t)}{d t} = -K(t)(\hat{\mathbf{y}}(t) - \mathbf{y})
+% \end{equation}
+% where
+% \begin{align*}
+%     K(t) \triangleq& J_A(t)^\top J_A(t) + J_B(t)^\top J_B(t) \\& + J_U(t)^\top J_U(t) + Z(t)^\top Z(t), \\
+%     J_A(t) \triangleq& \left(\mathbf{u}(t)^\top \otimes I_N \right) Q(t)^{-1} D(t)\left[Z(t)^\top \otimes I_n\right] P_A(t), \\
+%     J_B(t) \triangleq& \left(\mathbf{u}(t)^\top \otimes I_N \right) Q(t)^{-1} D(t)\left[Z(t)^\top \otimes I_n\right] P_B, \\
+%     J_U(t) \triangleq& \left(\mathbf{u}(t)^\top \otimes I_N \right) Q(t)^{-1} D(t)\left[X^\top \otimes I_n\right].
+% \end{align*}
+% \end{proposition}
+
+As stated in the introduction, our main interest is initialization conditions (i.e., $t=0$) under which the training process converges to a global optimum.
+The main intuition is that if this condition is satisfied, there exists a "good" region around the parameters' starting points where the loss continues to decrease while the network's parameters remain in this region.
+
+% Formally, we define a local neighborhood around the random initialization of each parameter $\theta \in \{A, B, U, \mathbf{u}\}$ as a ball $\mathcal{B}(\theta(0), R_\theta)$ with radius $R_\theta$. By Weyl's inequality, we can upper bound the operator norm of each parameter within its corresponding ball by a constant $\bar{\lambda}_{\theta} = \|\theta(0)\|_2 + R_{\theta}$. For notational convenience, we denote the product of these bounds as $\bar{\lambda}_{ab\dots} \triangleq \bar{\lambda}_a \bar{\lambda}_b \dots$ for any subset of parameters. Given this notation, we provide upper bounds on the update length in the following lemma.
+
+% \begin{lemma}
+%     Assume that for all $t\in [0,T]$, the parameters stay within their defined balls $\mathcal{B}$, we have the following upper bound on the movement of paramters 
+%     \begin{align*}
+%     \|A(T) - A(0)\|_F &\le  \frac{2 \|X\|_F \bar{\lambda}_{uUA}}{m^2}  \int_0^T \|\mathbf{e}(t)\|_2 dt \\
+%     \|B(T) - B(0)\|_F &\le \frac{2 \|X\|_F \bar{\lambda}_{uU}}{m^2} \int_0^T \|\mathbf{e}(t)\|_2 dt \\
+%     \|U(T) - U(0)\|_F &\le \frac{\bar{\lambda}_u \|X\|_F}{m}  \int_0^T \|\mathbf{e}(t)\|_2 dt \\
+%     \|\mathbf{u}(T) - \mathbf{u}(0)\|_2 &\le \frac{\bar{\lambda}_U \|X\|_F}{m} \int_0^T \|\mathbf{e}(t)\|_2 dt \\
+%     \end{align*}
+%     \label{lemma:continuous_update_length_bound}
+% \end{lemma}
+
+
+\begin{lemma}[Parameter drift bounds under gradient flow]\label{lem:drift}
+Assume $\theta(t) \in \Bc(\theta(0),R_\theta)$ for all $t \in [0,T]$.  Then:
+\begin{align}
+  \|A(T)-A(0)\|_F &\leq \frac{2\|X\|_F\bar\lambda_{Uu A}}{m^2}\int_0^T\|\ehat(t)\|_2\,dt, \label{eq:drift_A}\\
+  \|B(T)-B(0)\|_F &\leq \frac{2\|X\|_F\bar\lambda_{Uu}}{m^2}\int_0^T\|\ehat(t)\|_2\,dt, \label{eq:drift_B}\\
+  \|U(T)-U(0)\|_F &\leq \frac{\bar\lambda_\ub\|X\|_F}{m}\int_0^T\|\ehat(t)\|_2\,dt, \label{eq:drift_U}\\
+  \|\ub(T)-\ub(0)\|_2 &\leq \frac{\bar\lambda_U\|X\|_F}{m}\int_0^T\|\ehat(t)\|_2\,dt. \label{eq:drift_u}
+\end{align}
+\end{lemma}
+\begin{proof}
+By the fundamental theorem of calculus,
+$\|\theta(T)-\theta(0)\|_F \leq \int_0^T\|\dot\theta(t)\|_F\,dt = \int_0^T\|\nabla_\theta\Lc(t)\|_F\,dt$.
+Substitute the gradient bounds from Lemma~\ref{lem:grad_bounds}.
+\end{proof}
+
+A fundamental geometric requirement for our convergence analysis is that the implicit network must be sufficiently wide. Specifically, we assume an \textbf{over-parameterized regime} where the hidden dimension $n$ is at least as large as the batch size $N$ ($n \ge N$). This structural assumption ensures that the initial equilibrium state matrix $Z(0) \in \mathbb{R}^{n \times N}$ can achieve full column rank, allowing its minimum singular value, $\lambda_0 \triangleq \sigma_{\min}(Z(0))$, to be strictly positive.
+
+Furthermore, to guarantee global convergence, the network must be initialized such that $\lambda_0$ is sufficiently large relative to the scale of the dataset and the initial loss. We formalize this constraint in the following condition.
+
+% \begin{condition}
+% \label{condition:lambda_0_continuous}
+% Let 
+% $$
+% C_{\max} = \max \left\{ 
+%     \frac{2\bar{\lambda}_{U\mathbf{u}A}}{m^2 R_A},
+%     \frac{2\bar{\lambda}_{U\mathbf{u}}}{m^2 R_B},
+%     \frac{\bar{\lambda}_{\mathbf{u}}}{m R_U},
+%     \frac{\bar{\lambda}_U}{m R_u}
+% \right\}
+% $$
+% We define following condition on $\lambda_0$
+% \begin{align}
+%     \lambda_0^2 \ge& 
+%     4 \|X\|_F \sqrt{2 \mathcal{L}(\theta_0)} C_{\max}
+%     \label{cond:continuous_1} \\
+%     %
+%     \lambda_0^3 \ge&
+%     8\|X\|_F^2 \sqrt{2 \mathcal{L}(\theta_0)} 
+%     \frac{\bar{\lambda}_{\mathbf{u}}}{m^2}
+%     \left( \frac{4 (\bar{\lambda}_{UA}^2 + \bar{\lambda}_{U}^2) }{m^2} + 1\right) 
+%     \label{cond:continuous_2}
+% \end{align}
+% \end{condition}
+
+\begin{condition}[Continuous case]\label{cond:C1}
+Let 
+$$
+C_{\max} = \max \left\{ 
+    \frac{2\bar{\lambda}_{U\mathbf{u}A}}{m^2 R_A},
+    \frac{2\bar{\lambda}_{U\mathbf{u}}}{m^2 R_B},
+    \frac{\bar{\lambda}_{\mathbf{u}}}{m R_U},
+    \frac{\bar{\lambda}_U}{m R_u}
+\right\}
+$$
+We define following condition on $\lambda_0$
+\begin{align}
+  \lambda_0^2 &\geq 8\|X\|_F\sqrt{2\Lc(\theta_0)}\,C_{\max}, \tag{C1a}\label{eq:C1a}\\
+  \lambda_0^3 &\geq 16\|X\|_F^2\sqrt{2\Lc(\theta_0)}\,\frac{\bar\lambda_\ub}{m^2}
+              \!\left(\frac{4(\bar\lambda_{UA}^2+\bar\lambda_U^2)}{m^2}+1\right). \tag{C1b}\label{eq:C1b}
+\end{align}
+\end{condition}
+
+
+% \begin{corollary}
+% Assume Property 2 holds up to time $t < T$, meaning the minimum singular value of the fixed point batch $Z(t)$ satisfies $\sigma_{\min}(Z(t)) \ge \frac{\lambda_0}{2}$
+% \begin{align*}
+%     &\int_0^t \|\mathbf{e}(s)\|_2 ds = \int_0^t \sqrt{2\mathcal{L}(s)} ds \\
+%     &\le \sqrt{2\mathcal{L}(0)} \int_0^\infty \exp\left\{ - \frac{\lambda_0^2 s}{4} \right\} ds = \frac{4 \sqrt{2\mathcal{L}(0)}}{\lambda_0^2}
+% \end{align*}
+% \end{corollary}
+
+
+Under the continuous-time dynamics and the initialization constraints provided above, we can now state our main convergence result for monotone DEQs.
+
+\begin{theorem}[Global Convergence of monDEQ under Gradient Flow]
+\label{theorem:main_continuous}
+Suppose the monotone DEQ is parameterized such that $I - W \succeq mI$ for some margin $m > 0$, the width of the hidden layer is $O(N)$, and initialized such that Condition \ref{cond:C1} holds. Then, for all training times $t \ge 0$, the gradient flow dynamics satisfy:
+
+\begin{enumerate}
+    \item Bounded Parameter Drift: All trainable parameters remain strictly inside their respective local initialization balls, i.e., $\theta(t) \in \mathcal{B}(\theta(0), R_\theta)$.
+    \item Stable Representation: The minimum singular value of the equilibrium fixed point remains strictly bounded away from zero:$$\sigma_{\min}(Z(t)) \ge \frac{\lambda_0}{2}$$
+    \item Exponential Convergence: The training loss decays exponentially to zero at a rate governed by the initial singular value:
+    \begin{equation}
+        \mathcal{L}(\theta(t)) \le \exp\left\{ - \frac{\lambda_0^2 t}{2} \right\} \mathcal{L}(\theta(0))
+        \label{eq:loss_converge_rate_continuous}
+    \end{equation}
+\end{enumerate}
+
+\end{theorem}
+
+\paragraph{Proof Sketch.}
+The proof proceeds by continuous induction. We assume the three properties hold up to some arbitrary time $t < T$ and demonstrate that Condition 1 forces the inequalities to be strictly maintained, which implies $T = \infty$. The cornerstone of the exponential decay (Property 3) relies on isolating a Polyak-Łojasiewicz (PL) condition on the readout weights $\mathbf{u}$. By restricting the total parameter gradient norm to just the projection layer, we observe that $\|\nabla_\theta \mathcal{L}\|_F^2 \ge \|\nabla_{\mathbf{u}} \mathcal{L}\|_2^2 \ge \sigma_{\min}^2(Z^*(t)) \|\mathbf{e}(t)\|_2^2$. This allows us to bound the continuous-time derivative of the loss as $\frac{d\mathcal{L}}{dt} \le -\frac{\lambda_0^2}{2} \mathcal{L}(t)$. This rapid exponential convergence ensures that the integral of the prediction error over time, $\int_0^t \|\mathbf{e}(s)\|_2 ds$, is globally finite. Because our prior lemmas established that the parameter update magnitudes are uniformly upper-bounded by this error integral, the finite error strictly limits the total parameter movement. Consequently, the parameters never escape their initial neighborhoods (Property 1). This confinement prevents the operator norms from blowing up and limits the continuous evolution of the fixed-point $Z^*$, guaranteeing that the feature matrix maintains full rank and does not collapse (Property 2) throughout training.
+
+Before presenting the detailed proof, let us state the following useful corollary
+\begin{corollary}[Exponential decay]\label{cor:exp_decay}
+Suppose $\sigmamin(Z^*(t)) \geq \lambda_0/2$ for all $t \in [0,T)$.  Then:
+\begin{align}
+  \Lc(t) &\leq e^{-\lambda_0^2 t/2}\,\Lc(0), \label{eq:loss_decay}\\
+  \int_0^\infty\|\ehat(t)\|_2\,dt &\leq \frac{4\sqrt{2\Lc(0)}}{\lambda_0^2}. \label{eq:error_integral}
+\end{align}
+\end{corollary}
+\begin{proof}
+Compute the time derivative of $\mathcal{L}$ along gradient flow:
+$$\frac{d\mathcal{L}}{dt} = \langle\nabla_\theta\mathcal{L}, \dot\theta\rangle = -\|\nabla_\theta\mathcal{L}\|_F^2
+\leq -\|\nabla_\mathbf{u}\mathcal{L}\|_2^2.$$
+
+From Lemma \ref{lem:grad_loss}: $\nabla_\mathbf{u}\mathcal{L} = Z^*\mathbf{e}$, so
+$\|\nabla_\mathbf{u}\mathcal{L}\|_2^2 = \|Z^*\mathbf{e}\|_2^2 \geq \sigma_{\min}^2(Z^*)\|\mathbf{e}\|_2^2 \geq \frac{\lambda_0^2}{4}\|\mathbf{e}\|_2^2.$
+
+Since $\|\mathbf{e}\|_2^2 = 2\mathcal{L}$:
+$\frac{d\mathcal{L}}{dt} \leq -\frac{\lambda_0^2}{4} \cdot 2\mathcal{L} = -\frac{\lambda_0^2}{2}\mathcal{L}.$
+
+By Grönwall's inequality, $\mathcal{L}(t) \leq e^{-\lambda_0^2 t/2}\mathcal{L}(0)$.
+
+From Eq. \ref{eq:loss_decay}: $\|\mathbf{e}(t)\|_2 = \sqrt{2\mathcal{L}(t)} \leq \sqrt{2\mathcal{L}(0)}\,e^{-\lambda_0^2 t/4}$.
+Integrating:
+$\int_0^\infty\|\mathbf{e}(t)\|_2\,dt \leq \sqrt{2\mathcal{L}(0)}\int_0^\infty e^{-\lambda_0^2 t/4}\,dt
+= \sqrt{2\mathcal{L}(0)} \cdot \frac{4}{\lambda_0^2}.$
+\end{proof}
+
+% \begin{proof}
+% \textbf{Setup.}
+% Define $T^* = \sup\{T \geq 0 : \text{Properties 1, 2, 3 hold on } [0, T]\}$.
+% At $t = 0$ all three hold strictly: parameters are at the centers of their balls
+% ($\|\theta(0) - \theta(0)\|_F = 0 < R_\theta$), $\sigma_{\min}(Z^*(0)) = \lambda_0 > \lambda_0/2$,
+% and $\mathcal{L}(0) \leq e^0 \mathcal{L}(0)$. By continuity of $\theta(t)$ and $\sigma_{\min}(\cdot)$,
+% $T^* > 0$.
+
+% \textbf{Assume for contradiction that $T^* < \infty$.}
+
+% At $T^*$, at least one property holds with equality (otherwise by continuity it would hold on a
+% slightly larger interval, contradicting the definition of $T^*$). We derive that all three
+% actually hold strictly at $T^*$, giving a contradiction.
+
+% \textbf{Property 3 (exponential decay up to $T^*$):}
+% On $[0, T^*]$, Property 2 gives $\sigma_{\min}(Z^*(t)) \geq \lambda_0/2$. By Corollary \ref{corollary:exp_loss_decay}:
+% $$\mathcal{L}(t) \leq e^{-\lambda_0^2 t/2}\,\mathcal{L}(0) \qquad \text{for all } t \in [0, T^*].$$
+% This is a strict inequality at $t = T^* > 0$, so P3 holds strictly.
+
+% \textbf{Property 1 (parameter confinement at $T^*$):}
+% Apply Lemma \ref{lemma:continuous_update_length_bound} over $[0, T^*]$, using the integral bound from Corollary \ref{corollary:exp_loss_decay}:
+% \begin{align*}
+% \|A(T^*) - A(0)\|_F
+% &\leq \frac{2\|X\|_F\bar\lambda_{UuA}}{m^2}\int_0^{T^*}\|\mathbf{e}(t)\|_2\,dt \\
+% &\leq \frac{2\|X\|_F\bar\lambda_{UuA}}{m^2} \cdot \frac{4\sqrt{2\mathcal{L}(0)}}{\lambda_0^2} \\
+% &= \frac{8\|X\|_F\bar\lambda_{UuA}\sqrt{2\mathcal{L}(0)}}{m^2\lambda_0^2}.
+% \end{align*}
+
+% By Condition Condition 1 (Inequality \ref{cond:continuous_1}):
+% $\lambda_0^2 \geq 4\|X\|_F\sqrt{2\mathcal{L}(0)} \cdot \frac{2\bar\lambda_{UuA}}{m^2 R_A},$
+% so $\frac{8\|X\|_F\bar\lambda_{UuA}\sqrt{2\mathcal{L}(0)}}{m^2\lambda_0^2} \leq R_A/2 < R_A.$
+
+% Hence $\|A(T^*) - A(0)\|_F < R_A$ strictly. The same argument applies to $B$, $U$, and
+% $\mathbf{u}$ using their respective terms in Lemma 2 and Condition 1 (Inequality \ref{cond:continuous_1}). So P1 holds strictly.
+
+% \textbf{Property 2 (singular value stability at $T^*$):}
+% Apply Lemma 1 (perturbation of $Z^*$) between times $0$ and $T^*$:
+% \begin{align*}
+% \|Z^*(T^*) - Z^*(0)\|_F
+% &\leq \frac{\|X\|_F \|U(T^*) - U(0)\|_2}{m} \\
+% &\quad + \frac{\|X\|_F \|W(T^*) - W(0)\|_2 \|U(0)\|_2}{m^2}.
+% \end{align*}
+
+% The $U$ drift is bounded by Lemma \ref{lemma:continuous_update_length_bound}  and Corollary \ref{corollary:exp_loss_decay}.
+% The $W$ drift is bounded in terms of $A$ and $B$ drifts via $W = (1-m)I - A^\top A + B - B^\top$:
+% $\|W(T^*) - W(0)\|_2 \leq 2\bar\lambda_A\|A(T^*) - A(0)\|_2 + \|A(T^*) - A(0)\|_2^2 + 2\|B(T^*) - B(0)\|_2.$
+
+% After substituting the drift bounds and using Condition 1 (Inequality \ref{cond:continuous_2}), we obtain
+% $\|Z^*(T^*) - Z^*(0)\|_F \leq \lambda_0/2.$
+% By Weyl's inequality:
+% $\sigma_{\min}(Z^*(T^*)) \geq \sigma_{\min}(Z^*(0)) - \|Z^*(T^*) - Z^*(0)\|_F \geq \lambda_0 - \lambda_0/2 = \lambda_0/2.$
+
+% Again a strict bound (the drift is $< \lambda_0/2$, not equal), so P2 holds strictly.
+
+% \textbf{Conclusion.}
+% All three properties hold strictly at $T^*$. By continuity they hold on $[0, T^* + \varepsilon)$
+% for some $\varepsilon > 0$, contradicting the definition of $T^*$ as a supremum. Hence $T^* = \infty$,
+% and all three properties hold for all $t \geq 0$. 
+% \end{proof}
+
+\begin{proof}
+Define $T^* = \sup\{T \geq 0: \text{Properties 1--3 hold on } [0,T]\}$.
+At $t=0$ all three hold strictly (parameters at ball centers, $\sigmamin = \lambda_0 > \lambda_0/2$,
+$\Lc(0) \leq e^0\Lc(0)$).  By continuity, $T^* > 0$.
+
+Assume for contradiction $T^* < \infty$.
+
+\textbf{Property 3 at $T^*$.}
+On $[0,T^*]$, Property~2 gives $\sigmamin(Z^*(t)) \geq \lambda_0/2$, so
+Corollary~\ref{cor:exp_decay} yields $\Lc(T^*) \leq e^{-\lambda_0^2 T^*/2}\Lc(0)$, which
+holds for $T^* > 0$.
+
+\textbf{Property 1 at $T^*$.}
+Apply Lemma~\ref{lem:drift}\eqref{eq:drift_A} over $[0,T^*]$, using the integral
+bound~\eqref{eq:error_integral}:
+\begin{align*}
+\|A(T^*)-A(0)\|_F
+  \leq \frac{2\|X\|_F\bar\lambda_{Uu A}}{m^2}\cdot\frac{4\sqrt{2\Lc(0)}}{\lambda_0^2} \\
+  = \frac{8\|X\|_F\bar\lambda_{Uu A}\sqrt{2\Lc(0)}}{m^2\lambda_0^2}.
+\end{align*}
+By Condition~\eqref{eq:C1a}: $\lambda_0^2 \geq 16\|X\|_F\sqrt{2\Lc(0)}\cdot\frac{\bar\lambda_{Uu A}}{m^2 R_A}$,
+so the right-hand side is $\leq R_A/2 < R_A$.  Repeat for $B$, $U$, $\ub$.
+
+\textbf{Property 2 at $T^*$.}
+
+We bound $\|Z^*(T^*) - Z^*(0)\|_F$ using Lemma~\ref{lem:Zstar_perturb}:
+
+\begin{align*}
+    \|Z^*(T^*)-Z^*(0)\|_F \leq \frac{\|X\|_F\|U(T^*)-U(0)\|_2}{m} + \\ \frac{\|X\|_F\|W(T^*)-W(0)\|_2\|U(0)\|_2}{m^2}.
+\end{align*}
+The $U$-drift is bounded
+by~\eqref{eq:drift_U}
+$$\|U(T^*)-U(0)\|_F \leq \frac{\bar\lambda_\mathbf{u}\|X\|_F}{m}\cdot\frac{4\sqrt{2\mathcal{L}(0)}}{\lambda_0^2}$$
+
+% For the $W$-drift, use
+% $\|W(T^*)-W(0)\|_2 \leq 2\bar\lambda_A\|A(T^*)-A(0)\|_2 + \|A(T^*)-A(0)\|_2^2 + 2\|B(T^*)-B(0)\|_2$.
+
+Bounding the $W$-drift: From $W = (1-m)I - A^\top A + B - B^\top$,
+\begin{align*}
+    &\|W(T^*)-W(0)\|_2 \\ \leq& 2\bar\lambda_A\|A(T^*)-A(0)\|_2 + 2\|B(T^*)-B(0)\|_2.
+\end{align*}
+(using $\|A_1^\top A_1 - A_0^\top A_0\|_2 = \|(A_1-A_0)^\top A_1 + A_0^\top(A_1-A_0)\|_2 \leq 2\bar\lambda_A\|A_1-A_0\|_2$, dropping the quadratic term for small drift).
+
+Substituting the drift bounds and applying Condition~\eqref{eq:C1b} gives
+$\|Z^*(T^*)-Z^*(0)\|_F < \lambda_0/4$.
+Weyl's inequality: $\sigmamin(Z^*(T^*)) \geq \lambda_0 - \lambda_0/4 = \lambda_0 3/4 > \lambda_0 / 2$, strictly.
+
+All three properties hold strictly at $T^*$; by continuity they extend to
+$[0,T^*+\varepsilon)$, contradicting the definition of $T^*$.  Hence $T^* = \infty$.
+\end{proof}
+
+% The proof relies on continuous-time induction. First, we assume that up to time $t$, the parameters remain close to their initialization. Under this assumption, we show that the minimum singular value of the feature matrix $Z(t)$ remains strictly positive using Weyl's inequality. Finally, this bounded singular value guarantees that the tangent kernel $K(t)$ is positive definite, which forces the loss to decay exponentially, thereby completing the induction.
+
+% \begin{proof}
+% Let $T = \sup \Big\{ t \ge 0 : \theta(s) \in \mathcal{B}(\theta(0), R) \text{ and } \lambda_{\min}(Z(s)) \ge \frac{\lambda_0}{2} \text{ for all } s \in [0, t] \Big\}$
+
+% By definition, at $t=0$, $\theta(0)$ is strictly inside the ball and $\lambda_{\min}(Z(0)) = \lambda_0 > \frac{\lambda_0}{2}$. Because the dynamics are continuous, there exists some small time $\epsilon > 0$ such that the condition holds. Therefore, $T > 0$.
+
+% Assume for the sake of contradiction that $T < \infty$. For $s \in [0, T]$
+% \begin{enumerate}
+%     \item The PL Condition: Because $\lambda_{\min}(Z(s)) \ge \frac{\lambda_0}{2}$, the gradient flow satisfies $\frac{d}{dt}\mathcal{L}(\theta(s)) \le -\frac{\lambda_0^2}{4} \mathcal{L}(\theta(s))$.
+%     \item Exponential Decay: Integrating this gives $\mathcal{L}(\theta(s)) \le \exp\{-\lambda_0^2 s / 4\} \mathcal{L}(\theta(0))$.
+%     \item Parameter Movement Bound:
+% \end{enumerate}
+
+% % We show by induction for all $0 \le s < t$ that
+% % \begin{enumerate}
+% %     \item $\cdot_s$ is within the ball $\mathcal{B}(\cdot_0, R_\cdot)$,
+% %     \item $\mathcal{L}(\theta_s) \le \exp\{ - \lambda_0^2 s / 2\} \mathcal{L}(\theta_0)$
+% % \end{enumerate}
+
+% Now, we bound the movement of parameter $A(t)$ by integrating its gradient norm from $0$ to $T$:
+% \begin{align*}
+% &\|A(T) - A(0)\|_F \\
+% &\le \int_{0}^{T} |\nabla_A \mathcal{L}(s)|_F ds \\
+% &\le \int_{0}^{T} \frac{2}{m^2} \|X\|_F \|U(s)\|_2 |\mathbf{u}(s)|_2 |A(s)|_2  |f(s) - y|_2 ds \\
+% &\le \frac{2}{m^2} |X|_F \bar{\lambda}_{U\mathbf{u}A} \sqrt{2\mathcal{L}(0)} \int_{0}^{T} \exp\{-\lambda_0^2 s / 2\} ds \\
+% &\le \frac{2}{m^2} |X|_F \bar{\lambda}_{U\mathbf{u}A} \sqrt{2\mathcal{L}(0)} \left( \frac{2}{\lambda_0^2} \right) \\
+% &= \frac{4 |X|F \bar{\lambda}_{U\mathbf{u}A} \sqrt{2\mathcal{L}(0)}}{m^2 \lambda_0^2}
+% \end{align*}
+
+% By substituting our assumption for Condition 1 ($\lambda_0^2 \ge 4 \|X\|_F \sqrt{2 \mathcal{L}(0)} C_{\max}$), we get:
+% \begin{align*}
+% &\|A(T) - A(0)\|_F \\
+% &\le \frac{4 \|X\|_F \bar{\lambda}_{U\mathbf{u}A} \sqrt{2\mathcal{L}(0)}}{m^2 \left( 4 \|X\|_F \sqrt{2 \mathcal{L}(0)} C_{\max} \right)} = \frac{\bar{\lambda}_{U\mathbf{u}A}}{m^2 C_{\max}}    
+% \end{align*}
+
+% Because $C_{\max} \ge \frac{2\bar{\lambda}_{U\mathbf{u}A}}{m^2 R_A}$ by definition, we conclude:$$\|A(T) - A(0)\|_F \le \frac{R_A}{2} < R_A$$
+
+% Following the exact same integration process for the remaining parameters yields:
+% \begin{align*}
+% \|B(T) - B(0)\|_F &\le \frac{4 |X|F \bar{\lambda}_{U\mathbf{u}} \sqrt{2\mathcal{L}(0)}}{m^2 \lambda_0^2} \le \frac{R_B}{2} < R_B \\
+% \|U(T) - U(0)\|_F &\le \frac{2 |X|F \bar{\lambda}_{\mathbf{u}} \sqrt{2\mathcal{L}(0)}}{m \lambda_0^2} \le \frac{R_U}{2} < R_U \\
+% \|\mathbf{u}(T) - \mathbf{u}(0)\|_2 &\le \frac{2 |X|F \bar{\lambda}_{U} \sqrt{2\mathcal{L}(0)}}{m \lambda_0^2} \le \frac{R_u}{2} < R_u
+% \end{align*}
+
+
+
+
+
+\bibliographystyle{abbrvnat}
+% \setcitestyle{authoryear,open={((},close={))}} %Citation-related commands
+\bibliography{ref.bib}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%% SUPPLEMENT (OPTIONAL) %%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\clearpage
+\appendix
+
+\thispagestyle{empty}
+
+
+% For one-column format, uncomment the following:
+\onecolumn \makesupplementtitle
+% For two-column format, uncomment the following:
+%\twocolumn[ \makesupplementtitle ]
+\section{Backward pass}
+\label{sec:backward_pass}
+
+In backward pass, traditional back propagation will not work effectively for DEQs since it requires to store intermediate hidden state of the forward propagation which could entail hundreds or thousands of iterations, requiring ever growing memory to store computational graphs. 
+Naively different thought the iteration of a solver also has other disadvantage like doing more floating point operation and as the number of unrolling steps increases, the numerical error accumulates which may render the algorithm useless in some applications e.g., gradient based hyper parameter optimization \cite{hypertuning}.
+
+\cite{DEQ} provide an alternative procedure which is based on RBP which is a algorithm to train recurrent neural networks which has a convergent hidden state dynamics, and benefit from the same advantages as RBP: memory efficient. 
+
+Assuming some proper conditions on $g$ in equation \ref{eqn:deq1}
+\begin{enumerate}
+    \item $g$ is continuous differentiable, and
+    \item $\nabla_\mathbf{z} g(\mathbf{z}^*, \mathbf{u}) = J_{g}(\mathbf{z}^*) = J_{f}(\mathbf{z}^*)- I$ is nonsingular
+\end{enumerate}
+% , we can take the derivative w.r.t. $w$ at $h^{*}$ on both sides. Using the total derivative and the dependence of $h^{*}$ on $w$ we obtain,
+% $$
+% \begin{aligned}
+% \frac{\partial \Psi\left(w, h^{*}\right)}{\partial w} &=\frac{\partial h^{*}}{\partial w}-\frac{\mathrm{d} F_w\left(h^*, x\right)}{\mathrm{d} w} \\
+% &=\left(I-J_{F, h^{*}}\right) \frac{\partial h^{*}}{\partial w}-\frac{\partial F_w\left(h^*, x\right)}{\partial w} \\
+% &=\mathbf{0}
+% \end{aligned}
+% $$
+where $J_{f}(\mathbf{z}^*)=\frac{\partial f\left(\mathbf{z}^{*}, \mathbf{u}\right)}{\partial \mathbf{z}}$ is the Jacobian matrix of $f$ evaluated at $\mathbf{z}^{*}$. 
+Implicit function theorem guarantees the existence and uniqueness of an implicit function $s$ such that $\mathbf{z}^{*}=s\left(\mathbf{u}\right)$. Although we do not know the analytic expression of the function $s$, we can still compute its gradient at the fixed point
+
+\begin{equation}
+    \label{eqn:fpdif}
+    \frac{\partial \mathbf{z}^{*}}{\partial \mathbf{u}} = - J_{g}(\mathbf{z}^*)^{-1} \frac{\partial g\left(\mathbf{z}^{*}, \mathbf{u}\right)}{\partial \mathbf{u}} =\left(I-J_{f}( \mathbf{z}^{*})\right)^{-1} \frac{\partial f\left(\mathbf{z}^{*}, \mathbf{u}\right)}{\partial \mathbf{u}}
+\end{equation}
+
+Typically, there is a output function $\hat{y}=p_\psi(\mathbf{z}^*)$, which is parameterize by $\psi$, to obtain a prediction and a loss function $\ell(p_\psi(\mathbf{z}^*), y)$ measures the closeness between ground truth $y$ and predicted output $\hat{y}$.
+Based on Eq. \ref{eqn:fpdif}, we now turn our attention towards computing the gradient of the loss $\ell$ w.r.t. the parameters $\theta$ and $\psi$ of the network. By using the total derivative and the chain rule, we have
+\begin{equation}
+    \label{eqn:rbpgrad}
+    \begin{aligned}
+        \frac{\partial \ell}{\partial \psi} &=\frac{\partial \ell}{\partial \hat{y}} \frac{\partial p_\psi\left(\mathbf{z}^{*}\right)}{\partial \psi} \\
+        \frac{\partial \ell}{\partial \theta} &=\underbrace{\frac{\partial \ell}{\partial \mathbf{z}^*}\left(I-J_{f}(\mathbf{z}^{*})\right)^{-1}}_{\mathbf{v}^{\top}} \frac{\partial f\left(\mathbf{h}^{*}; \mathbf{u}\right)}{\partial \theta}
+    \end{aligned}
+\end{equation}
+
+Since given the output $\mathbf{z}^*$ which is the steady hidden state of $f_\theta$, training the post-processing part $p_\psi$ is simply back propagation, we omit the parameters of $p_\psi$ and focus on the gradient of the loss function $\ell$ w.r.t. the parameter of $f_\theta$ which is the most crucial component. 
+To bypass the explicit calculation of the inverse $\left(I-J_{f }(\mathbf{z}^{*})\right)^{-1}$ which is costly to compute for large scale, the original RBP algorithm \cite{Pineda}, \cite{Almeida} introduces an auxiliary variable $\mathbf{v}^{\top}$ in term of Eq \ref{eqn:rbpgrad} such that and compute it by solving the following linear fixed-point system which can be solved using the same solver as the forward pass.
+
+% In particular, we multiply $\left(I-J_{F, h^{*}}^{\top}\right)$ on the left hand of both sides of Eq. (9) and rearrange the terms as follows,
+$$
+\mathbf{v}^{\top}= \mathbf{v}^\top J_{f}(\mathbf{z}^{*}) + \left(\frac{\partial \ell}{\partial \mathbf{z}^*}\right)
+$$
+
+Note that the most expensive operation in this algorithm is the vector-matrix product $\mathbf{v}^\top J_{f}( \mathbf{z}^{*})$, which is the same operator as back-propagation and can be efficiently computed by using auto differentiation tools.
+
+The most important message from Eq. \ref{eqn:rbpgrad} is that the backward pass can be computed with merely the knowledge of $\mathbf{z}^\star$, irrespective of how it is found.
+This enable the backward procedure to requires constant memory since we do not store any intermediate activation during the forward pass and need to store only $\theta, \mathbf{z}^*$ and $\mathbf{x}$ for the backward pass. Assuming no knowledge of the black-box solver for the equilibrium point in the forward pass, one can implicitly differentiate through $\mathbf{z}^\star$, and produce gradients with respect to the model parameters $\theta$.
+
+\section{The well-poseness of monDEQ.}
+\label{sec:well_poseness_of_monDEQ}
+
+In the original paper of monDEQ, \citet{monotonedeq} show that there is a connection between the fixed point of DEQ equation and the solution of the operator splitting problem \ref{problem:splitting}. 
+% [Proximity operators have very attractive properties that make them particularly well suited for iterative minimization algorithms. For instance, $prox_f$ is firmly nonexpansive and its fixed point set is precisely the set of minimizers of $f$.]
+% Define a problem
+\begin{problem}
+\label{problem:splitting}
+% Let $A: \mathcal{H} \rightarrow 2^{\mathcal{H}}$ and $B: \mathcal{H} \rightarrow 2^{\mathcal{H}}$ be maximally monotone operators. The task is to
+% $$
+% \text { find } x \in \mathcal{H} \text { such that } 0 \in A x+B x
+% $$
+Finding a zero of the operator splitting problem $0 \in(F+G)\left(\mathbf{z}^{\star}\right)$ with the operators
+$$
+F(\mathbf{z})=(I-W)(\mathbf{z})-(U \mathbf{x}+ \mathbf{b}), \quad G=\partial f
+$$
+\end{problem}
+
+Forward-backward splitting (FBS) is an iterative approach to find a zero in Problem \ref{problem:splitting}. And in order to guarantee the convergence to a unique solution $\mathbf{z}^\star$, forward-backward splitting method requires that $G$ and $F$ are maximal monotonicity. Using lemma \ref{lem:derv_maxiaml}, we have the operator $G$ is maximal.
+\begin{lemma}
+\label{lem:derv_maxiaml}
+A subdifferentiable operator $\partial f$ is maximal monotone iff $f$ is a convex closed proper (CCP) function.
+\end{lemma}
+ For the operator $F$, we leverage following lemma 
+\begin{lemma}
+\label{lem:linear_maxiaml}
+A linear operator $F(\mathbf{x}) = W\mathbf{x} + h$ for $W \in \mathbb{R}^{n \times n}$ and $h \in \mathbb{R}^n$ is (maximal) monotone if and only if $W + W^T \succeq 0$ and strongly monotone if $W + W^T \succeq mI$. 
+\end{lemma}
+
+\section{MISSING PROOFS}
+
+The supplementary materials may contain detailed proofs of the results that are missing in the main paper.
+
+
+\subsection{Lemma \ref{lem:deri_g}}
+\label{proof:deri_g}
+
+We prove first the following lemma for single input case i.e $g_\theta(\mathbf{z}, \mathbf{x}) = \mathbf{z} - \sigma(W \mathbf{z} + U \mathbf{x})$.
+
+\begin{lemma}
+The partial derivatives of $g_\theta$ with respect to $\mathbf{z}, A, B$, and $U$ are
+\begin{align*}
+    \frac{\partial g_\theta}{\partial \mathbf{z}} =& \left[I_{n}- J W\right], \\
+    \frac{\partial g_\theta}{\partial W} =& -J \left[\mathbf{z}^{T} \otimes I_{n} \right], \\
+    \frac{\partial g_\theta}{\partial A} =& - \left[\mathbf{z}^{T} \otimes J\right]P_A \\
+    \frac{\partial g_\theta}{\partial B} =& - J \left[\mathbf{z}^{T} \otimes I_{n} \right]P_B\\
+    \frac{\partial g_\theta}{\partial U} =& - J \left[\mathbf{x}^{T} \otimes I_{n}\right]\\.
+\end{align*}
+
+where $P_A = - \left[(I_{nn} + K^{(n)})(I \otimes A^T)\right]$ and $P_B = \left[(I_{nn} - K^{(n)})\right]$
+\end{lemma}
+
+\begin{proof}
+Denote $J \triangleq \operatorname{diag}(\sigma'(W\mathbf{z} + U\mathbf{x}))$.
+
+The differential of $g_\theta$ is given by
+$$
+\begin{aligned} 
+    d g_\theta &= d(\mathbf{z} - \sigma(W\mathbf{z} + U\mathbf{x})) \\ 
+               &= d \mathbf{z} - J d(W \mathbf{z} + U \mathbf{x}) \\ 
+               &= (I - J W)d\mathbf{z} - J(dW)\mathbf{z}  - J(dU)\mathbf{x} 
+\end{aligned}
+$$
+Taking vectorization on both size using rule $\operatorname{vec}[ABC] =(C^\top \otimes A)\operatorname{vec}[B]$
+
+\begin{align}
+\label{eqn:proof_deri_g_0}
+    \operatorname{vec}[d g_\theta] =& (I - JW) d \mathbf{z} - (\mathbf{z}^T \otimes J) \operatorname{vec}[dW] - (\mathbf{x} ^ T \otimes J) \operatorname{vec}[dU] \\
+    =& (I - JW) d \mathbf{z} - J (\mathbf{z}^T \otimes I_n) \operatorname{vec}[dW] - J (\mathbf{x} ^ T \otimes I_n) \operatorname{vec}[dU]
+\end{align}
+
+Since $W$ is a function of $A, B$. The differential of $W$ is given by
+
+$$
+\begin{aligned}dW &= d\left[(1 - \mu)I - A^\top A + B - B^\top\right]  \\ &= -d(A^TA) + dB -d(B^T) \\ &= - A^T dA - (dA)^T A + dB - (dB)^T\end{aligned}
+$$
+
+Taking vectorization on both size using rule of commutation matrix. If $K^{(m,n)}$ is a commutation matrix then (1)  $K^{(m,n)}\operatorname{vec}[A]=\operatorname{vec}[A^T]$ and (2) $K^{(r, m)} (A \otimes B)K^{(n, q)}=B \otimes A$. In the special case of $m$ = $n$ the commutation matrix is an involution and symmetric matrix. In that case, we simply write $K^{(n)}$ instead of $K^{(n, n)}$. We have
+
+$$
+\begin{aligned}    \operatorname{vec}[dW]     
+&= - (I\otimes A^T)\operatorname{vec}[dA] - (A^T \otimes I)\operatorname{vec}[dA^T] + \operatorname{vec}[dB] - \operatorname{vec}[dB^T] \\     
+&= - (I\otimes A^T)\operatorname{vec}[dA] - K^{(n)} K^{(n)} (A^T \otimes I) K^{(n)} K^{(n)} \operatorname{vec}[dA^T] + \operatorname{vec}[dB] - K^{(n)}K^{(n)}\operatorname{vec}[dB^T] \\ 
+&= - (I\otimes A^T)\operatorname{vec}[dA] - K^{(n)} K^{(n)} (A^T \otimes I) K^{(n)} \operatorname{vec}[dA] + \operatorname{vec}[dB] - K^{(n)}\operatorname{vec}[dB] \\     
+&= - \left[(I \otimes A^T) +  K^{(n)}(I\otimes A^T)\right]\operatorname{vec}[dA] + (I_{nn} - K^{(n)})\operatorname{vec}[dB] \\    
+&= - \left[(I_{nn} + K^{(n)})(I\otimes A^T)\right]\operatorname{vec}[dA] + (I_{nn} - K^{(n)})\operatorname{vec}[dB] \\
+&= P_A\operatorname{vec}[dA] + P_B\operatorname{vec}[dB]
+\end{aligned}
+$$
+where $P_A = - \left[(I_{nn} + K^{(n)})(I\otimes A^T)\right]$ and $P_B=(I_{nn} - K^{(n)})$.
+Plug this into Eq. \ref{eqn:proof_deri_g_0}, we have
+\begin{equation*}
+    \operatorname{vec}[d g_\theta] = (I - JW) d \mathbf{z} - J (\mathbf{z}^T \otimes I_n) (P_A\operatorname{vec}[dA] + P_B\operatorname{vec}[dB]) - J (\mathbf{x}^T \otimes I_n) \operatorname{vec}[dU]
+\end{equation*}
+So 
+\begin{align*}
+    \frac{\partial g_\theta}{\partial \mathbf{z}} =& \left[I_{n}- J W\right], \\
+    \frac{\partial g_\theta}{\partial W} =& -J \left[\mathbf{z}^{T} \otimes I_{n} \right], \\
+    \frac{\partial g_\theta}{\partial A} =& - \left[\mathbf{z}^{T} \otimes J\right]P_A = J \left[\mathbf{z}^{T} \otimes I_{n} \right] \left[(I_{nn} + K^{(n)})(I \otimes A^T)\right]\\
+    \frac{\partial g_\theta}{\partial B} =& - J \left[\mathbf{z}^{T} \otimes I_{n} \right]P_B = - J \left[\mathbf{z}^{T} \otimes I_{n} \right] \left[(I_{nn} - K^{(n)})\right] \\
+    \frac{\partial g_\theta}{\partial U} =& - J \left[\mathbf{x}^{T} \otimes I_{n}\right]\\.
+\end{align*}
+\end{proof}
+
+% \subsection{Lemma \ref{lem:deri_Z}}
+% \label{proof:deri_Z}
+% \begin{lemma}
+% The partial derivatives of $Z^*$ with respect to $A, B$, and $U$ are
+% \begin{align*}
+%     \frac{\partial \operatorname{vec}[Z^*]}{\partial \operatorname{vec}[W]} =& -Q^{-1} D\left[I_m \otimes Z\right], \\
+%     \frac{\partial \operatorname{vec}[Z^*]}{\partial \operatorname{vec}[A]} =&\ Q^{-1} D\left[I_m \otimes Z\right] P_A\\
+%     \frac{\partial \operatorname{vec}[Z^*]}{\partial \operatorname{vec}[B]} =& - Q^{-1} D\left[I_m \otimes Z\right] P_B\\
+%     \frac{\partial \operatorname{vec}[Z^*]}{\partial \operatorname{vec}[U]} =& -Q^{-1}D\left[I_m \otimes X\right]\\.
+% \end{align*}
+% where $P_A = (I + K^{(m)})(I_m \otimes A^T), P_B = (I - K^{(m)})$.
+% \end{lemma}
+
+
+\subsection{Lemma \ref{lem:upperbound_VQ}}
+\label{proof:upperbound_VQ}
+% \todo{$\gamma$ need to be equal to $\alpha$ so it may not be 1. We need to have $\|R_G\| \le 1$.}
+
+% \begin{lemma}
+% $\| (\mathbf{u}^\top \otimes I_N) Q^{-1} \| \le \frac{\|\mathbf{u}\|}{m}$
+% \end{lemma}
+
+To prove lemma \ref{lem:upperbound_VQ}, we first prove following lemma
+\begin{lemma}
+$\|  [I - W^\top J]^{-1} \mathbf{u} \| \le \frac{\| \mathbf{u}\|}{m}$
+\end{lemma}
+\begin{proof}
+\label{proof:upperbound_vQ}
+Let $\Pi = [J + \mu (I - J)]^{-1}$ with $\mu > 0$. 
+Since $J_{ii} < 1 \forall i \in [n]$, we have $\Pi \in D^+$.
+
+Let 
+\begin{equation}
+    \label{eqn:backward}
+    \mathbf{v}^* = [I - W^\top J]^{-1} \mathbf{u}.
+\end{equation}
+This implies $\mathbf{v}^* = W^\top J \mathbf{v}^* + \mathbf{u}$.
+Since $\Pi \in D^+$, $\mathbf{v}^*$ can have the form $\mathbf{v}^* = \Pi \bar{\mathbf{v}}^*$.
+
+Rewrite \ref{eqn:backward},
+\begin{align*}
+    &\Pi \mathbf{v}' = W^\top J \Pi \mathbf{v}' + \mathbf{u} \\
+    \Leftrightarrow &\Pi \mathbf{v}' + \mu W^\top (I - J) \Pi \mathbf{v}' = W^\top \mathbf{v}' + \mathbf{u} \\
+    \Leftrightarrow & \left[I + \mu W^\top (I - J)\right ]\Pi \mathbf{v}' = W^\top \mathbf{v}' + \mathbf{u} \\
+    \Leftrightarrow & \left\{\left[I + \mu W^\top (I - J) \right]\Pi - I \right\} \mathbf{v}' + \left( I  - W^\top \right) \mathbf{v}' - \mathbf{u} = 0\\
+\end{align*}
+
+Let $G = \left\{\left[I + \mu W^\top (I - J) \right]\Pi - I \right\}$ and $F(\mathbf{v}') = \left( I  - W^\top \right) \mathbf{v}' - \mathbf{u}$.
+
+The resolvent operator for $G$ is $R_G = (I + \gamma G)^{-1}$, with $\gamma = 1$ then $R_G = \Pi^{-1}\left[I + \mu W^\top (I - J) \right]^{-1}$.
+
+
+The update of forward-backward splitting is 
+\begin{equation}
+    \bar{\mathbf{v}}^{k + 1} = R_G(\bar{\mathbf{v}}^{k} - \alpha F(\bar{\mathbf{v}}^{k})) = \Pi^{-1}\left[I + \mu W^\top (I - J) \right]^{-1}\left\{\left[I - \alpha(I - W^\top)\right]\bar{\mathbf{v}}^{k} + \alpha \mathbf{u} \right\}
+\end{equation}
+
+
+From the proposition \ref{lem:upper_LT}, we have $L[\left[I - \alpha(I - W^\top)\right]] \leq \sqrt{1-2 \alpha m+\alpha^{2} L[I-W^\top]^{2}}$.
+Take the limit $\mu \to 0^+$, we have $\|\Pi\| \le 1$ and $\|R_G\| \le 1$.
+
+Same argument from lemma \ref{lem:Zstar_norm}, we have $\| \bar{\mathbf{v}}^* \| \le \frac{\|\mathbf{u}\|}{m}$.
+Further,
+\begin{equation*}
+    \mathbf{v}^* = \Pi \bar{\mathbf{v}}^* = \left\{\left[I - \alpha(I - W^\top)\right]\bar{\mathbf{v}}^* + \alpha \mathbf{u} \right\}
+\end{equation*}
+when $\mu \to 0$).
+So $\|\mathbf{v}^*\| \le \| \bar{\mathbf{v}}^* \| = \frac{\|\mathbf{u}\|}{m}$.
+\end{proof}
+
+\begin{lemma}
+$\| (\mathbf{u}^\top \otimes I_N) Q^{-1} \| \le \frac{\|\mathbf{u}\|}{m}$
+\end{lemma}
+
+\begin{proof}
+We have $(\mathbf{u}^\top \otimes I_N) Q^{-1} = V \ast I_N$ where $\ast$ denote row-wise Khatri-Rao product and $V \in \mathbb{R}^{N \time n}, V_{i:} = \mathbf{u}^\top [I - J_i W]^{-1}$.
+
+Let $\mathbf{v} \in \mathbb{R}^{Nn}$ and partition $\mathbf{v} = \left[\mathbf{v}_1^\top  \dots  \mathbf{v}_N^\top \right]^\top$ where $\mathbf{v}_i \in \mathbb{R}^n$.
+Then $(V \ast I_N) \mathbf{v} = \left[V_{1:}\mathbf{v}_1 \dots V_{N:} \mathbf{v}_N \right]$.
+
+\begin{align*}
+    \| (V \ast I_N) \mathbf{v} \|^2 =& \sum_{i = 1}^N \langle V_{i:}^\top, \mathbf{v}_i  \rangle ^ 2 \\
+    \leq&  \sum_{i = 1}^N \|V_{i:}^\top\|^2 \|\mathbf{v}_i\|^2 \\
+    \leq& \sum_{i = 1}^N \frac{\|\mathbf{u}\|^2}{m^2} \|\mathbf{v}_i\|^2 \\
+    =& \frac{\|\mathbf{u}\|^2}{m^2} \| \mathbf{v} \|^2. \\
+\end{align*}
+
+So $\sup_{\mathbf{v} \in \mathbb{R}^{Nn}} \frac{\| (V \ast I_N )\mathbf{v} \| }{\|\mathbf{v}\|} \le \frac{\|\mathbf{u}\|}{m}$ i.e $\| (\mathbf{u}^\top \otimes I_N) Q^{-1} \| \le \frac{\|\mathbf{u}\|}{m}$.
+\end{proof}
+
+\end{document}
+
