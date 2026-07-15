@@ -26,5 +26,5 @@ If our work is helpful in your own research, please consider citing our paper:
   author={Ngoc-Hieu Nguyen and Rui Zhang},
   booktitle={ICML 2026 Workshop AI4Research},
   year={2026},
-  url={[https://openreview.net/forum?id=GWKbSM8yCw](https://openreview.net/forum?id=GWKbSM8yCw)}
+  url={https://openreview.net/pdf?id=GWKbSM8yCw}
 }
